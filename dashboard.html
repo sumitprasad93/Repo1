@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FinTrack – Powered by Tink</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0f1117;
+      --surface: #1a1d27;
+      --sur2:    #22263a;
+      --border:  #2d3148;
+      --accent:  #4f6ef7;
+      --purple:  #7c3aed;
+      --green:   #22c55e;
+      --red:     #ef4444;
+      --yellow:  #f59e0b;
+      --text:    #e2e8f0;
+      --muted:   #8892a4;
+      --r:       12px;
+    }
+
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* NAV */
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 28px; height: 64px;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .logo { font-size: 1.2rem; font-weight: 700; }
+    .logo span { color: var(--accent); }
+    .tink-badge {
+      display: flex; align-items: center; gap: 6px;
+      font-size: .75rem; color: var(--muted);
+      background: var(--sur2); border: 1px solid var(--border);
+      padding: 4px 12px; border-radius: 20px;
+    }
+    .tink-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .nav-r { display: flex; align-items: center; gap: 12px; }
+    .btn {
+      padding: 8px 18px; border-radius: 8px; border: none;
+      font-size: .85rem; font-weight: 600; cursor: pointer;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn:hover { opacity: .85; transform: translateY(-1px); }
+    .btn:disabled { opacity: .4; cursor: default; transform: none; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-ghost   { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg,var(--accent),var(--purple));
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: .8rem; cursor: pointer;
+    }
+
+    /* LAYOUT */
+    .layout { display: flex; }
+
+    /* SIDEBAR */
+    aside {
+      width: 214px; min-height: calc(100vh - 64px);
+      background: var(--surface); border-right: 1px solid var(--border);
+      padding: 16px 10px; flex-shrink: 0;
+    }
+    .sec-label { font-size: .68rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); padding: 10px 12px 5px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 9px;
+      padding: 9px 12px; border-radius: 8px;
+      font-size: .86rem; color: var(--muted); cursor: pointer;
+      transition: background .12s, color .12s; margin-bottom: 1px;
+    }
+    .nav-item:hover { background: var(--sur2); color: var(--text); }
+    .nav-item.active { background: var(--sur2); color: var(--accent); }
+
+    /* MAIN */
+    main { flex: 1; padding: 28px; overflow-x: hidden; }
+
+    /* CARDS */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px,1fr)); gap: 14px; margin-bottom: 24px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 20px; }
+    .card-label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 7px; }
+    .card-val   { font-size: 1.55rem; font-weight: 700; }
+    .card-sub   { font-size: .78rem; color: var(--muted); margin-top: 5px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: .68rem; font-weight: 700; }
+    .bg   { background: rgba(34,197,94,.15); color: var(--green); }
+    .br   { background: rgba(239,68,68,.15);  color: var(--red); }
+    .by   { background: rgba(245,158,11,.15); color: var(--yellow); }
+
+    /* SECTION */
+    .sec-title { font-size: .95rem; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+    .sec-title .ml { margin-left: auto; }
+
+    /* ACCOUNT ROW */
+    .acc-list  { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+    .acc-row   { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 18px; display: flex; align-items: center; gap: 12px; }
+    .acc-icon  { width: 40px; height: 40px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+    .acc-info  { flex: 1; }
+    .acc-name  { font-weight: 600; font-size: .875rem; }
+    .acc-meta  { font-size: .77rem; color: var(--muted); margin-top: 2px; }
+    .acc-bal   { font-weight: 700; font-size: .95rem; }
+    .pos { color: var(--green); }
+    .neg { color: var(--red); }
+
+    /* GRID */
+    .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 24px; }
+    @media(max-width:860px){ .g2{ grid-template-columns:1fr; } }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px; }
+    .panel-title { font-size: .72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 14px; }
+    .chart-wrap { position: relative; height: 210px; }
+
+    /* TX */
+    .tx-list { display: flex; flex-direction: column; }
+    .tx-row  { display: flex; align-items: center; gap: 11px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+    .tx-row:last-child { border-bottom: none; }
+    .tx-icon { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: .95rem; flex-shrink: 0; }
+    .tx-info { flex: 1; }
+    .tx-name { font-size: .855rem; font-weight: 600; }
+    .tx-meta { font-size: .73rem; color: var(--muted); margin-top: 1px; }
+    .tx-cat  { font-size: .68rem; background: var(--sur2); border-radius: 4px; padding: 1px 5px; margin-left: 4px; }
+    .tx-amt  { font-weight: 700; font-size: .875rem; white-space: nowrap; }
+
+    /* BUDGET */
+    .bud-list { display: flex; flex-direction: column; gap: 12px; }
+    .bud-head { display: flex; justify-content: space-between; font-size: .78rem; margin-bottom: 4px; }
+    .bud-bg   { height: 7px; background: var(--sur2); border-radius: 4px; overflow: hidden; }
+    .bud-fill { height: 100%; border-radius: 4px; transition: width .6s; }
+
+    /* MODAL */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.72); display: flex; align-items: center; justify-content: center; z-index: 200; }
+    .overlay.hidden { display: none; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 28px; width: 430px; max-width: 95vw; }
+    .modal h2 { font-size: 1.15rem; margin-bottom: 6px; }
+    .modal p  { color: var(--muted); font-size: .84rem; margin-bottom: 20px; line-height: 1.6; }
+    .tink-flow { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+    .tink-step { background: var(--sur2); border-radius: 10px; padding: 14px 16px; display: flex; gap: 12px; align-items: flex-start; }
+    .step-num  { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: .72rem; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+    .step-txt  { font-size: .83rem; line-height: 1.5; color: var(--muted); }
+    .step-txt strong { color: var(--text); }
+    .prog-bar  { height: 4px; background: var(--sur2); border-radius: 2px; margin: 14px 0; overflow: hidden; }
+    .prog-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width .5s; }
+    .modal-foot { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+    /* SPINNER */
+    .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; margin: 0 auto 12px; }
+    @keyframes spin { to{ transform: rotate(360deg); } }
+
+    /* CODE BLOCK */
+    pre { background: var(--sur2); border-radius: 8px; padding: 14px; font-size: .77rem; overflow-x: auto; line-height: 1.65; margin-top: 10px; }
+    pre code { background: none; padding: 0; color: var(--text); font-family: 'Cascadia Code','Fira Code',monospace; }
+    code { background: var(--sur2); padding: 2px 6px; border-radius: 4px; font-size: .78rem; color: var(--accent); font-family: monospace; }
+
+    /* TINK ENV CONFIG */
+    .env-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .env-field { display: flex; flex-direction: column; gap: 4px; }
+    .env-field label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+    .env-field input {
+      background: var(--sur2); border: 1px solid var(--border); border-radius: 7px;
+      padding: 8px 12px; color: var(--text); font-size: .84rem; outline: none;
+      transition: border-color .15s;
+    }
+    .env-field input:focus { border-color: var(--accent); }
+    .env-field input::placeholder { color: var(--muted); }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- ═══ NAV ═══ -->
+<nav>
+  <div class="logo">Fin<span>Track</span></div>
+  <div class="tink-badge">
+    <div class="tink-dot"></div>
+    Powered by Tink Open Banking
+  </div>
+  <div class="nav-r">
+    <button class="btn btn-primary" onclick="openModal()">+ Connect Bank</button>
+    <div class="avatar">JS</div>
+  </div>
+</nav>
+
+<!-- ═══ LAYOUT ═══ -->
+<div class="layout">
+  <aside>
+    <div class="sec-label">Menu</div>
+    <div class="nav-item active" onclick="nav('dashboard',this)">📊 Dashboard</div>
+    <div class="nav-item" onclick="nav('accounts',this)">🏦 Accounts</div>
+    <div class="nav-item" onclick="nav('transactions',this)">💳 Transactions</div>
+    <div class="nav-item" onclick="nav('budgets',this)">🎯 Budgets</div>
+    <div class="nav-item" onclick="nav('analytics',this)">📈 Analytics</div>
+    <div class="sec-label">Developer</div>
+    <div class="nav-item" onclick="nav('tink-setup',this)">🔌 Tink API Setup</div>
+  </aside>
+  <main id="app"></main>
+</div>
+
+<!-- ═══ CONNECT MODAL ═══ -->
+<div class="overlay hidden" id="overlay">
+  <div class="modal">
+
+    <!-- Step 1 – Explain Tink flow -->
+    <div id="s1">
+      <h2>Connect Your Bank via Tink</h2>
+      <p>Tink is a licensed Open Banking platform (PSD2 / EU). Read-only access — your credentials are never shared with us.</p>
+      <div class="tink-flow">
+        <div class="tink-step">
+          <div class="step-num">1</div>
+          <div class="step-txt"><strong>Authorization</strong> — You'll be redirected to Tink's secure portal to pick your bank.</div>
+        </div>
+        <div class="tink-step">
+          <div class="step-num">2</div>
+          <div class="step-txt"><strong>Bank Login</strong> — Authenticate directly with your bank (SCA / 2FA).</div>
+        </div>
+        <div class="tink-step">
+          <div class="step-num">3</div>
+          <div class="step-txt"><strong>Token Exchange</strong> — Tink issues an <code>authorization_code</code> → our backend swaps it for an <code>access_token</code>.</div>
+        </div>
+        <div class="tink-step">
+          <div class="step-num">4</div>
+          <div class="step-txt"><strong>Data Sync</strong> — We fetch your accounts &amp; transactions via <code>GET /data/v2/accounts</code> and <code>/transactions</code>.</div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="goStep(2)">Start Authorization →</button>
+      </div>
+    </div>
+
+    <!-- Step 2 – Authorizing -->
+    <div id="s2" style="display:none">
+      <h2>Authorizing with Tink…</h2>
+      <p>In production this opens <strong>link.tink.com</strong> in a popup. Your bank login happens entirely on Tink's domain.</p>
+      <div class="prog-bar"><div class="prog-fill" id="prog" style="width:0%"></div></div>
+      <div id="auth-msg" style="text-align:center;font-size:.84rem;color:var(--muted);min-height:50px;display:flex;align-items:center;justify-content:center">
+        Waiting…
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" onclick="goStep(1)">← Back</button>
+        <button class="btn btn-primary" id="authBtn" onclick="simulateTinkAuth()">Open Tink Portal</button>
+      </div>
+    </div>
+
+    <!-- Step 3 – Importing -->
+    <div id="s3" style="display:none;text-align:center;padding:10px 0">
+      <div style="font-size:3rem;margin-bottom:10px">✅</div>
+      <h2 style="margin-bottom:8px">Bank Connected!</h2>
+      <p>Fetching your data from Tink…</p>
+      <div class="spinner" id="spinner" style="margin-top:18px"></div>
+      <p id="import-msg" style="font-size:.8rem;color:var(--muted);margin-top:8px">Calling GET /data/v2/accounts…</p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   TINK API INTEGRATION
+   ═══════════════════════════════════════════════════
+   This dashboard is pre-wired for Tink's API.
+   To go live, set your credentials in the API Setup
+   tab and deploy server.js (included in this project).
+
+   Tink docs: https://docs.tink.com/
+   Scopes used: accounts:read, transactions:read, balances:read
+   ═══════════════════════════════════════════════════ */
+
+const TINK_CONFIG = {
+  clientId:    localStorage.getItem('tink_client_id')    || '',
+  redirectUri: localStorage.getItem('tink_redirect_uri') || window.location.origin + '/callback',
+  market:      localStorage.getItem('tink_market')       || 'DE',   // DE, SE, GB, FR, ES, NL…
+  locale:      'en_US',
+  scope:       'accounts:read,transactions:read,balances:read,credentials:read',
+};
+
+/* ────────────────────────────────────────────────────
+   TINK LINK URL BUILDER
+   Opens link.tink.com/1.0/authorize?... in a popup.
+   After user grants access, Tink redirects to
+   redirectUri with ?code=AUTH_CODE&credentialsId=...
+   Your backend then calls:
+     POST https://api.tink.com/api/v1/oauth/token
+       { code, client_id, client_secret, grant_type: 'authorization_code' }
+   to get an access_token.
+   ──────────────────────────────────────────────────── */
+function buildTinkUrl(state) {
+  const params = new URLSearchParams({
+    client_id:             TINK_CONFIG.clientId || 'YOUR_CLIENT_ID',
+    redirect_uri:          TINK_CONFIG.redirectUri,
+    scope:                 TINK_CONFIG.scope,
+    market:                TINK_CONFIG.market,
+    locale:                TINK_CONFIG.locale,
+    response_type:         'code',
+    state:                 state || crypto.randomUUID(),
+  });
+  return 'https://link.tink.com/1.0/authorize?' + params.toString();
+}
+
+/* ────────────────────────────────────────────────────
+   REAL API CALLS  (proxy through your backend)
+   ────────────────────────────────────────────────────
+   Your backend (server.js) handles secrets and
+   forwards calls to api.tink.com with Bearer token.
+
+   async function tinkGetAccounts(accessToken) {
+     return fetch('/api/tink/accounts', {
+       headers: { Authorization: 'Bearer ' + accessToken }
+     }).then(r => r.json());
+     // Tink response shape:
+     // { accounts: [{ id, name, type, balance: { amount:{value,currencyCode} }, financialInstitutionId }] }
+   }
+
+   async function tinkGetTransactions(accessToken, accountId) {
+     const url = `/api/tink/transactions?accountId=${accountId}&pageSize=100`;
+     return fetch(url, {
+       headers: { Authorization: 'Bearer ' + accessToken }
+     }).then(r => r.json());
+     // Tink response shape:
+     // { transactions: [{ id, amount:{value,currencyCode}, dates:{booked}, description, categories:{pfm:{id,name}} }] }
+   }
+   ──────────────────────────────────────────────────── */
+
+/* ═══════════════════════════════════════════════════
+   MOCK DATA  (replaced by real Tink responses above)
+   ═══════════════════════════════════════════════════ */
+const ACCOUNTS = [
+  { id:'acc1', name:'Deutsche Bank Giro',  type:'CHECKING', bank:'Deutsche Bank', icon:'🏦', color:'#0018a8', balance:4820.55,  currency:'EUR', iban:'DE89 3704 0044 **** 4821' },
+  { id:'acc2', name:'Sparkasse Sparen',    type:'SAVINGS',  bank:'Sparkasse',     icon:'💰', color:'#e30613', balance:12540.00, currency:'EUR', iban:'DE27 2005 0550 **** 9302' },
+  { id:'acc3', name:'N26 Girokonto',       type:'CHECKING', bank:'N26',           icon:'📱', color:'#00c6be', balance:2103.80,  currency:'EUR', iban:'DE84 1001 0010 **** 5510' },
+  { id:'acc4', name:'Commerzbank Kredit',  type:'CREDIT',   bank:'Commerzbank',   icon:'💳', color:'#ffcc00', balance:-640.20, currency:'EUR', iban:'DE12 2004 0030 **** 7741' },
+];
+
+const TRANSACTIONS = [
+  { id:'t1',  name:'Spotify',           date:'2026-03-02', amount:-9.99,   cat:'Entertainment', icon:'🎵', color:'#1db954' },
+  { id:'t2',  name:'Gehalt März',       date:'2026-03-01', amount:3850.00, cat:'Income',         icon:'💼', color:'#22c55e' },
+  { id:'t3',  name:'REWE',              date:'2026-03-01', amount:-78.42,  cat:'Groceries',      icon:'🛒', color:'#f59e0b' },
+  { id:'t4',  name:'Netflix',           date:'2026-02-29', amount:-15.99,  cat:'Entertainment',  icon:'🎬', color:'#ef4444' },
+  { id:'t5',  name:'McFit',             date:'2026-02-28', amount:-29.90,  cat:'Health',         icon:'🏋️', color:'#06b6d4' },
+  { id:'t6',  name:'Amazon',            date:'2026-02-27', amount:-143.50, cat:'Shopping',       icon:'📦', color:'#f97316' },
+  { id:'t7',  name:'EDEKA',             date:'2026-02-26', amount:-62.10,  cat:'Groceries',      icon:'🛒', color:'#f59e0b' },
+  { id:'t8',  name:'Stadtwerke Strom',  date:'2026-02-25', amount:-92.00,  cat:'Utilities',      icon:'⚡', color:'#eab308' },
+  { id:'t9',  name:'Vapiano',           date:'2026-02-24', amount:-48.60,  cat:'Dining',         icon:'🍽️', color:'#ec4899' },
+  { id:'t10', name:'Freelance Zahlung', date:'2026-02-23', amount:750.00,  cat:'Income',         icon:'💻', color:'#22c55e' },
+  { id:'t11', name:'BVG Monatskarte',   date:'2026-02-22', amount:-86.00,  cat:'Transport',      icon:'🚇', color:'#6366f1' },
+  { id:'t12', name:'Ikea',              date:'2026-02-21', amount:-220.00, cat:'Shopping',       icon:'🛋️', color:'#f97316' },
+];
+
+const BUDGETS = [
+  { label:'Groceries',    spent:240, limit:350, color:'#f59e0b' },
+  { label:'Dining',       spent:185, limit:200, color:'#ec4899' },
+  { label:'Entertainment',spent:55,  limit:80,  color:'#6366f1' },
+  { label:'Shopping',     spent:320, limit:300, color:'#ef4444' },
+  { label:'Utilities',    spent:150, limit:200, color:'#06b6d4' },
+  { label:'Transport',    spent:86,  limit:120, color:'#22c55e' },
+];
+
+/* ═══ ROUTING ═══ */
+let view = 'dashboard';
+let charts = {};
+
+function nav(v, el) {
+  view = v;
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  if (el) el.classList.add('active');
+  render();
+}
+
+function render() {
+  Object.values(charts).forEach(c => c.destroy());
+  charts = {};
+  const app = document.getElementById('app');
+  switch(view) {
+    case 'dashboard':    app.innerHTML = vDashboard();   afterDashboard();   break;
+    case 'accounts':     app.innerHTML = vAccounts();    break;
+    case 'transactions': app.innerHTML = vTransactions();break;
+    case 'budgets':      app.innerHTML = vBudgets();     afterBudgets();     break;
+    case 'analytics':    app.innerHTML = vAnalytics();   afterAnalytics();   break;
+    case 'tink-setup':   app.innerHTML = vTinkSetup();   break;
+    default:             app.innerHTML = vDashboard();   afterDashboard();
+  }
+}
+
+/* ═══════════════════════════
+   DASHBOARD
+   ═══════════════════════════ */
+function vDashboard() {
+  const total    = ACCOUNTS.reduce((s,a) => s+a.balance, 0);
+  const income   = TRANSACTIONS.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
+  const spending = Math.abs(TRANSACTIONS.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0));
+  const net      = income - spending;
+  return `
+  <div style="max-width:1080px">
+    <div style="margin-bottom:22px">
+      <h1 style="font-size:1.25rem;margin-bottom:4px">Willkommen zurück 👋</h1>
+      <p style="color:var(--muted);font-size:.84rem">Financial overview · March 2026 · via Tink Open Banking</p>
+    </div>
+    <div class="cards">
+      <div class="card">
+        <div class="card-label">Total Balance</div>
+        <div class="card-val">€${fmt(total)}</div>
+        <div class="card-sub"><span class="badge bg">+2.4%</span> vs Feb</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Monthly Income</div>
+        <div class="card-val pos">€${fmt(income)}</div>
+        <div class="card-sub">2 sources</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Monthly Spending</div>
+        <div class="card-val neg">€${fmt(spending)}</div>
+        <div class="card-sub"><span class="badge by">+8.1%</span> vs Feb</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Net Cash Flow</div>
+        <div class="card-val ${net>=0?'pos':'neg'}">€${fmt(net)}</div>
+        <div class="card-sub">${net>=0?'Saving money ✓':'Overspending ⚠'}</div>
+      </div>
+    </div>
+
+    <div class="sec-title">
+      Connected Accounts
+      <button class="btn btn-ghost ml" style="font-size:.75rem" onclick="openModal()">+ Add Account</button>
+    </div>
+    <div class="acc-list">${ACCOUNTS.map(accRow).join('')}</div>
+
+    <div class="g2">
+      <div class="panel">
+        <div class="panel-title">Income vs Spending · Last 6 Months</div>
+        <div class="chart-wrap"><canvas id="barChart"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Spending by Category</div>
+        <div class="chart-wrap"><canvas id="donutChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="g2">
+      <div class="panel">
+        <div class="panel-title">Recent Transactions · via Tink</div>
+        <div class="tx-list">${TRANSACTIONS.slice(0,5).map(txRow).join('')}</div>
+        <button class="btn btn-ghost" style="width:100%;margin-top:12px;font-size:.78rem" onclick="nav('transactions')">View All</button>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Budget Status</div>
+        <div class="bud-list">${BUDGETS.map(budRow).join('')}</div>
+        <button class="btn btn-ghost" style="width:100%;margin-top:12px;font-size:.78rem" onclick="nav('budgets')">Manage Budgets</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function afterDashboard() {
+  charts.bar = new Chart(document.getElementById('barChart'), {
+    type:'bar',
+    data:{
+      labels:['Oct','Nov','Dec','Jan','Feb','Mar'],
+      datasets:[
+        { label:'Income',   data:[3850,4200,5100,3800,4600,4600], backgroundColor:'rgba(34,197,94,.7)', borderRadius:4 },
+        { label:'Spending', data:[2900,3100,4200,2700,3200,3418], backgroundColor:'rgba(239,68,68,.7)', borderRadius:4 },
+      ]
+    },
+    options:chartOpts({ yPrefix:'€' })
+  });
+  charts.donut = new Chart(document.getElementById('donutChart'), {
+    type:'doughnut',
+    data:{
+      labels:BUDGETS.map(b=>b.label),
+      datasets:[{ data:BUDGETS.map(b=>b.spent), backgroundColor:BUDGETS.map(b=>b.color), borderWidth:0 }]
+    },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'68%',
+      plugins:{ legend:{ position:'right', labels:{ color:'#8892a4', boxWidth:11, padding:8 } } } }
+  });
+}
+
+/* ═══════════════════════════
+   ACCOUNTS
+   ═══════════════════════════ */
+function vAccounts() {
+  const total = ACCOUNTS.reduce((s,a)=>s+a.balance,0);
+  return `
+  <div style="max-width:780px">
+    <div class="sec-title">Accounts <button class="btn btn-primary ml" style="font-size:.78rem" onclick="openModal()">+ Connect</button></div>
+    <div class="card" style="margin-bottom:18px">
+      <div class="card-label">Net Worth</div>
+      <div class="card-val">€${fmt(total)}</div>
+      <div class="card-sub">${ACCOUNTS.length} accounts · ${new Set(ACCOUNTS.map(a=>a.bank)).size} banks · synced via Tink</div>
+    </div>
+    <div class="acc-list">${ACCOUNTS.map(a=>`
+      <div class="acc-row">
+        <div class="acc-icon" style="background:${a.color}22">${a.icon}</div>
+        <div class="acc-info">
+          <div class="acc-name">${a.name}</div>
+          <div class="acc-meta">${a.bank} · ${a.type} · ${a.iban}</div>
+        </div>
+        <div class="acc-bal ${a.balance>=0?'pos':'neg'}">${a.balance<0?'-':''}€${fmt(Math.abs(a.balance))}</div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+/* ═══════════════════════════
+   TRANSACTIONS
+   ═══════════════════════════ */
+function vTransactions() {
+  const cats = [...new Set(TRANSACTIONS.map(t=>t.cat))];
+  return `
+  <div style="max-width:780px">
+    <div class="sec-title">Transactions · Tink <code>/data/v2/transactions</code></div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px">
+      <button class="btn btn-primary" style="font-size:.74rem;padding:5px 12px">All</button>
+      ${cats.map(c=>`<button class="btn btn-ghost" style="font-size:.74rem;padding:5px 12px">${c}</button>`).join('')}
+    </div>
+    <div class="panel"><div class="tx-list">${TRANSACTIONS.map(txRow).join('')}</div></div>
+  </div>`;
+}
+
+/* ═══════════════════════════
+   BUDGETS
+   ═══════════════════════════ */
+function vBudgets() {
+  return `
+  <div style="max-width:900px">
+    <div class="sec-title">Monthly Budgets</div>
+    <div class="g2">${BUDGETS.map(b=>`
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-weight:700">${b.label}</span>
+          <span class="badge ${b.spent>b.limit?'br':'bg'}">${b.spent>b.limit?'Over budget':'On track'}</span>
+        </div>
+        <div class="bud-bg">
+          <div class="bud-fill" style="width:${Math.min(b.spent/b.limit*100,100)}%;background:${b.color}"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.77rem;color:var(--muted);margin-top:5px">
+          <span>€${b.spent} spent</span><span>€${b.limit} limit</span>
+        </div>
+        <canvas id="bc_${b.label}" height="70" style="margin-top:10px"></canvas>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function afterBudgets() {
+  BUDGETS.forEach(b => {
+    const el = document.getElementById('bc_'+b.label);
+    if (!el) return;
+    charts['bc_'+b.label] = new Chart(el, {
+      type:'bar',
+      data:{
+        labels:['Wk1','Wk2','Wk3','Wk4'],
+        datasets:[{ data:[.2,.25,.3,.25].map(f=>Math.round(b.spent*f)), backgroundColor:b.color+'99', borderRadius:3 }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false } },
+        scales:{
+          x:{ ticks:{ color:'#8892a4', font:{size:9} }, grid:{ display:false } },
+          y:{ ticks:{ display:false }, grid:{ display:false }, border:{ display:false } }
+        }
+      }
+    });
+  });
+}
+
+/* ═══════════════════════════
+   ANALYTICS
+   ═══════════════════════════ */
+function vAnalytics() {
+  return `
+  <div style="max-width:1000px">
+    <div class="sec-title">Analytics</div>
+    <div class="g2">
+      <div class="panel">
+        <div class="panel-title">Net Worth Trend</div>
+        <div class="chart-wrap"><canvas id="lineC"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Spending Trend</div>
+        <div class="chart-wrap"><canvas id="areaC"></canvas></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-bottom:20px">
+      <div class="panel-title">Category Breakdown</div>
+      <div class="chart-wrap" style="height:260px"><canvas id="hbarC"></canvas></div>
+    </div>
+  </div>`;
+}
+
+function afterAnalytics() {
+  charts.line = new Chart(document.getElementById('lineC'), {
+    type:'line',
+    data:{
+      labels:['Oct','Nov','Dec','Jan','Feb','Mar'],
+      datasets:[{
+        label:'Net Worth', data:[14200,15100,16800,15200,17900,18824],
+        borderColor:'#4f6ef7', backgroundColor:'rgba(79,110,247,.12)',
+        fill:true, tension:.4, pointRadius:4
+      }]
+    },
+    options:chartOpts({ yPrefix:'€', noBar:true })
+  });
+  charts.area = new Chart(document.getElementById('areaC'), {
+    type:'line',
+    data:{
+      labels:['Oct','Nov','Dec','Jan','Feb','Mar'],
+      datasets:[{
+        label:'Spending', data:[2900,3100,4200,2700,3200,3418],
+        borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,.12)',
+        fill:true, tension:.4, pointRadius:4
+      }]
+    },
+    options:chartOpts({ yPrefix:'€', noBar:true })
+  });
+  charts.hbar = new Chart(document.getElementById('hbarC'), {
+    type:'bar',
+    data:{
+      labels:BUDGETS.map(b=>b.label),
+      datasets:[
+        { label:'Spent', data:BUDGETS.map(b=>b.spent), backgroundColor:BUDGETS.map(b=>b.color+'cc'), borderRadius:4 },
+        { label:'Limit', data:BUDGETS.map(b=>b.limit), backgroundColor:BUDGETS.map(b=>b.color+'33'), borderRadius:4 },
+      ]
+    },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ color:'#8892a4', boxWidth:11 } } },
+      scales:{
+        x:{ ticks:{ color:'#8892a4', callback:v=>'€'+v }, grid:{ color:'#2d3148' } },
+        y:{ ticks:{ color:'#8892a4' }, grid:{ color:'#2d3148' } }
+      }
+    }
+  });
+}
+
+/* ═══════════════════════════
+   TINK API SETUP
+   ═══════════════════════════ */
+function vTinkSetup() {
+  return `
+  <div style="max-width:820px">
+    <div class="sec-title">Tink API Setup</div>
+
+    <!-- Credentials form -->
+    <div class="panel" style="margin-bottom:16px">
+      <div class="panel-title">Your Tink App Credentials</div>
+      <p style="font-size:.83rem;color:var(--muted);margin-bottom:16px;line-height:1.6">
+        Register at <strong style="color:var(--text)">console.tink.com</strong> → create an app → copy <code>client_id</code> and <code>client_secret</code>.<br>
+        These are saved only in your browser's localStorage. The <code>client_secret</code> must stay on your backend.
+      </p>
+      <div class="env-grid">
+        <div class="env-field">
+          <label>Client ID</label>
+          <input id="f_cid" placeholder="your-tink-client-id" value="${localStorage.getItem('tink_client_id')||''}" />
+        </div>
+        <div class="env-field">
+          <label>Redirect URI</label>
+          <input id="f_ruri" placeholder="${window.location.origin}/callback" value="${localStorage.getItem('tink_redirect_uri')||''}" />
+        </div>
+        <div class="env-field">
+          <label>Market (ISO 3166-1)</label>
+          <input id="f_mkt" placeholder="DE" value="${localStorage.getItem('tink_market')||'DE'}" />
+        </div>
+        <div class="env-field">
+          <label>Backend URL</label>
+          <input id="f_be" placeholder="http://localhost:3000" value="${localStorage.getItem('tink_backend')||''}" />
+        </div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:6px" onclick="saveConfig()">Save Configuration</button>
+      <span id="save-ok" style="margin-left:12px;font-size:.8rem;color:var(--green);display:none">Saved ✓</span>
+    </div>
+
+    <!-- Tink Link URL preview -->
+    <div class="panel" style="margin-bottom:16px">
+      <div class="panel-title">Generated Tink Link URL</div>
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:10px">This URL opens in a popup. After authorization Tink redirects back with <code>?code=AUTH_CODE</code>.</p>
+      <pre><code id="tink-url-preview">${buildTinkUrl('demo-state')}</code></pre>
+    </div>
+
+    <!-- Backend server code -->
+    <div class="panel" style="margin-bottom:16px">
+      <div class="panel-title">Backend · server.js (Node.js / Express)</div>
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:4px">Handles the OAuth2 code exchange and proxies Tink API calls so your <code>client_secret</code> stays private.</p>
+      <pre><code>// server.js — deploy with: node server.js
+const express = require('express');
+const fetch   = require('node-fetch');
+require('dotenv').config();
+
+const app = express();
+app.use(express.json());
+app.use(require('cors')());
+
+const TINK_TOKEN_URL = 'https://api.tink.com/api/v1/oauth/token';
+const TINK_API_BASE  = 'https://api.tink.com';
+
+// 1. Exchange authorization_code → access_token
+app.post('/api/tink/token', async (req, res) => {
+  const body = new URLSearchParams({
+    code:          req.body.code,
+    client_id:     process.env.TINK_CLIENT_ID,
+    client_secret: process.env.TINK_CLIENT_SECRET,
+    grant_type:    'authorization_code',
+  });
+  const r = await fetch(TINK_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
+  });
+  res.json(await r.json());
+  // Returns: { access_token, refresh_token, token_type, expires_in, scope }
+});
+
+// 2. Proxy: GET /data/v2/accounts
+app.get('/api/tink/accounts', async (req, res) => {
+  const r = await fetch(TINK_API_BASE + '/data/v2/accounts', {
+    headers: { Authorization: req.headers.authorization }
+  });
+  res.json(await r.json());
+  // Returns: { accounts: [{ id, name, type, balance: { amount:{value,currencyCode} } }] }
+});
+
+// 3. Proxy: GET /data/v2/transactions
+app.get('/api/tink/transactions', async (req, res) => {
+  const qs = new URLSearchParams(req.query).toString();
+  const r  = await fetch(TINK_API_BASE + '/data/v2/transactions?' + qs, {
+    headers: { Authorization: req.headers.authorization }
+  });
+  res.json(await r.json());
+  // Returns: { transactions: [...], nextPageToken }
+});
+
+app.listen(3000, () => console.log('Tink proxy on :3000'));</code></pre>
+    </div>
+
+    <!-- .env -->
+    <div class="panel" style="margin-bottom:16px">
+      <div class="panel-title">.env file (never commit!)</div>
+      <pre><code>TINK_CLIENT_ID=your_tink_client_id
+TINK_CLIENT_SECRET=your_tink_client_secret
+PORT=3000</code></pre>
+    </div>
+
+    <!-- Tink markets -->
+    <div class="panel">
+      <div class="panel-title">Supported Markets (Tink)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:.8rem">
+        ${['🇩🇪 DE','🇸🇪 SE','🇬🇧 GB','🇫🇷 FR','🇳🇱 NL','🇪🇸 ES','🇮🇹 IT','🇦🇹 AT','🇩🇰 DK','🇧🇪 BE','🇳🇴 NO','🇵🇹 PT','🇫🇮 FI','🇵🇱 PL'].map(m=>`
+          <span style="background:var(--sur2);border:1px solid var(--border);border-radius:6px;padding:4px 10px">${m}</span>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+function saveConfig() {
+  localStorage.setItem('tink_client_id',    document.getElementById('f_cid').value.trim());
+  localStorage.setItem('tink_redirect_uri', document.getElementById('f_ruri').value.trim());
+  localStorage.setItem('tink_market',       document.getElementById('f_mkt').value.trim() || 'DE');
+  localStorage.setItem('tink_backend',      document.getElementById('f_be').value.trim());
+  Object.assign(TINK_CONFIG, {
+    clientId:    localStorage.getItem('tink_client_id'),
+    redirectUri: localStorage.getItem('tink_redirect_uri'),
+    market:      localStorage.getItem('tink_market'),
+  });
+  const ok = document.getElementById('save-ok');
+  ok.style.display = 'inline';
+  document.getElementById('tink-url-preview').textContent = buildTinkUrl('demo-state');
+  setTimeout(() => { ok.style.display = 'none'; }, 2000);
+}
+
+/* ═══════════════════════════
+   MODAL LOGIC
+   ═══════════════════════════ */
+function openModal() {
+  document.getElementById('overlay').classList.remove('hidden');
+  goStep(1);
+}
+function closeModal() {
+  document.getElementById('overlay').classList.add('hidden');
+}
+function goStep(n) {
+  [1,2,3].forEach(i => {
+    const el = document.getElementById('s'+i);
+    if (el) el.style.display = i===n ? 'block' : 'none';
+  });
+  if (n===2) {
+    document.getElementById('prog').style.width = '0%';
+    document.getElementById('auth-msg').textContent = 'Click to open Tink portal…';
+    const btn = document.getElementById('authBtn');
+    btn.disabled = false;
+    btn.textContent = 'Open Tink Portal';
+  }
+}
+
+function simulateTinkAuth() {
+  const btn = document.getElementById('authBtn');
+  btn.disabled = true;
+
+  /* ── In production: open real Tink URL ──
+     const tinkUrl = buildTinkUrl(crypto.randomUUID());
+     const popup = window.open(tinkUrl, 'tink', 'width=500,height=700');
+     window.addEventListener('message', e => {
+       if (e.origin === 'https://link.tink.com' && e.data.code) {
+         popup.close();
+         exchangeCode(e.data.code);
+       }
+     });
+     ─────────────────────────────────────── */
+
+  const steps = [
+    [15,  '🔗 Opening link.tink.com…'],
+    [35,  '🏦 Bank selected: Deutsche Bank'],
+    [55,  '🔐 SCA / 2FA completed ✓'],
+    [75,  '🔄 Exchanging authorization_code…'],
+    [90,  '✅ Access token received'],
+    [100, '🎉 Authorization complete!'],
+  ];
+  let i = 0;
+  const prog    = document.getElementById('prog');
+  const authMsg = document.getElementById('auth-msg');
+  const tick    = setInterval(() => {
+    if (i >= steps.length) { clearInterval(tick); setTimeout(()=>goStep(3), 300); simulateImport(); return; }
+    prog.style.width    = steps[i][0] + '%';
+    authMsg.textContent = steps[i][1];
+    i++;
+  }, 650);
+}
+
+function simulateImport() {
+  const msgs = [
+    'Calling GET /data/v2/accounts…',
+    'Calling GET /data/v2/transactions…',
+    'Mapping Tink categories…',
+    'Calculating balances…',
+    'Done! ✓',
+  ];
+  const el = document.getElementById('import-msg');
+  let i = 0;
+  const tick = setInterval(() => {
+    if (!el || i >= msgs.length) { clearInterval(tick); return; }
+    el.textContent = msgs[i++];
+    if (el.textContent.startsWith('Done')) {
+      clearInterval(tick);
+      document.getElementById('spinner').style.display = 'none';
+      setTimeout(() => { closeModal(); render(); }, 700);
+    }
+  }, 900);
+}
+
+/* ═══════════════════════════
+   HELPERS
+   ═══════════════════════════ */
+function accRow(a) {
+  return `
+  <div class="acc-row">
+    <div class="acc-icon" style="background:${a.color}22">${a.icon}</div>
+    <div class="acc-info">
+      <div class="acc-name">${a.name}</div>
+      <div class="acc-meta">${a.bank} · ${a.type} · ${a.iban}</div>
+    </div>
+    <div class="acc-bal ${a.balance>=0?'pos':'neg'}">${a.balance<0?'-':''}€${fmt(Math.abs(a.balance))}</div>
+  </div>`;
+}
+
+function txRow(t) {
+  return `
+  <div class="tx-row">
+    <div class="tx-icon" style="background:${t.color}22">${t.icon}</div>
+    <div class="tx-info">
+      <div class="tx-name">${t.name}</div>
+      <div class="tx-meta">${t.date}<span class="tx-cat">${t.cat}</span></div>
+    </div>
+    <div class="tx-amt ${t.amount<0?'neg':'pos'}">${t.amount<0?'-':'+'}€${fmt(Math.abs(t.amount))}</div>
+  </div>`;
+}
+
+function budRow(b) {
+  const pct = Math.min(b.spent/b.limit*100, 100);
+  return `
+  <div>
+    <div class="bud-head">
+      <span>${b.label}</span>
+      <span style="color:${b.spent>b.limit?'var(--red)':'var(--muted)'}">€${b.spent}/€${b.limit}</span>
+    </div>
+    <div class="bud-bg"><div class="bud-fill" style="width:${pct}%;background:${b.spent>b.limit?'var(--red)':b.color}"></div></div>
+  </div>`;
+}
+
+function fmt(n) { return n.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+function chartOpts({ yPrefix='', noBar=false }={}) {
+  return {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ labels:{ color:'#8892a4', boxWidth:11 } } },
+    scales:{
+      x:{ ticks:{ color:'#8892a4' }, grid:{ color:'#2d3148' } },
+      y:{ ticks:{ color:'#8892a4', callback: v => yPrefix+v }, grid:{ color:'#2d3148' } }
+    }
+  };
+}
+
+/* ═══ INIT ═══ */
+render();
+</script>
+</body>
+</html>
